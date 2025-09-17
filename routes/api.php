@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\VideoController;
 use App\Http\Controllers\StreamingController;
+use App\Http\Controllers\ServiceTestController;
 
 Route::get('/user', function (Request $request) {
     return $request->attributes->get('user');
@@ -60,7 +61,13 @@ Route::get('/', function () {
             'health' => '/health',
             'upload' => '/media/upload',
             'videos' => '/media/videos/{exerciseId}',
-            'streaming' => '/media/stream/{videoId}'
+            'streaming' => '/media/stream/{videoId}',
+            'service_test' => '/test-services'
         ]
     ]);
 });
+
+// Service Communication Test Route
+Route::get('/test-services', [ServiceTestController::class, 'testServiceCommunication'])
+    ->middleware('auth.api')
+    ->name('test.services');
