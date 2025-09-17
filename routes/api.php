@@ -50,3 +50,17 @@ Route::get('/health', function () {
         'version' => '1.0.0'
     ]);
 })->name('health.check');
+
+// Add a simple health check for the root route too
+Route::get('/', function () {
+    return response()->json([
+        'message' => 'FitNEase Media Service',
+        'status' => 'running',
+        'endpoints' => [
+            'health' => '/health',
+            'upload' => '/media/upload',
+            'videos' => '/media/videos/{exerciseId}',
+            'streaming' => '/media/stream/{videoId}'
+        ]
+    ]);
+});
