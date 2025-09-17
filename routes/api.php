@@ -6,6 +6,8 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\VideoController;
 use App\Http\Controllers\StreamingController;
 use App\Http\Controllers\ServiceTestController;
+use App\Http\Controllers\ServiceCommunicationTestController;
+use App\Http\Controllers\ServiceIntegrationDemoController;
 
 Route::get('/user', function (Request $request) {
     return $request->attributes->get('user');
@@ -62,12 +64,56 @@ Route::get('/', function () {
             'upload' => '/media/upload',
             'videos' => '/media/videos/{exerciseId}',
             'streaming' => '/media/stream/{videoId}',
-            'service_test' => '/test-services'
+            'service_test' => '/test-services',
+            'service_communication_tests' => [
+                'content_service' => '/service-test/content/videos/{exerciseId}',
+                'ml_service' => '/service-test/ml/recommendations/{userId}',
+                'mobile_app' => '/service-test/mobile/stream/{videoId}',
+                'logs' => '/service-test/logs'
+            ]
         ]
     ]);
 });
 
-// Service Communication Test Route
+// Service Communication Test Routes
 Route::get('/test-services', [ServiceTestController::class, 'testServiceCommunication'])
     ->middleware('auth.api')
     ->name('test.services');
+
+// Service Communication Monitoring Routes (for testing which services call media service)
+Route::prefix('service-test')->middleware('auth.api')->group(function () {
+    // Content Service Integration Test
+    Route::get('/content/videos/{exerciseId}', [ServiceCommunicationTestController::class, 'getExerciseVideosForContentService'])
+        ->name('test.content.videos');
+
+    // ML Service Integration Test
+    Route::get('/ml/recommendations/{userId}', [ServiceCommunicationTestController::class, 'getPersonalizedRecommendationsForMLService'])
+        ->name('test.ml.recommendations');
+
+    // Mobile App Integration Test
+    Route::get('/mobile/stream/{videoId}', [ServiceCommunicationTestController::class, 'streamVideoForMobileApp'])
+        ->name('test.mobile.stream');
+
+    // Communication Monitoring Dashboard
+    Route::get('/logs', [ServiceCommunicationTestController::class, 'getServiceCommunicationLogs'])
+        ->name('test.communication.logs');
+});
+
+// Service Integration Demo Routes (No authentication required for demonstration)
+Route::prefix('demo')->group(function () {
+    // Content Service Integration Demo
+    Route::get('/content-service/videos/{exerciseId}', [ServiceIntegrationDemoController::class, 'demoContentServiceCall'])
+        ->name('demo.content.videos');
+
+    // ML Service Integration Demo
+    Route::get('/ml-service/recommendations/{userId}', [ServiceIntegrationDemoController::class, 'demoMLServiceCall'])
+        ->name('demo.ml.recommendations');
+
+    // Mobile App Integration Demo
+    Route::get('/mobile-app/stream/{videoId}', [ServiceIntegrationDemoController::class, 'demoMobileAppStreaming'])
+        ->name('demo.mobile.stream');
+
+    // Service Integration Overview
+    Route::get('/integrations', [ServiceIntegrationDemoController::class, 'getServiceIntegrationOverview'])
+        ->name('demo.integrations');
+});
