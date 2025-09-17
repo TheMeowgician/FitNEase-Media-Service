@@ -22,13 +22,15 @@ Route::prefix('media')->group(function () {
     Route::get('/search', [MediaController::class, 'search'])->name('media.search');
 
     // Video Management Routes
-    Route::get('/video/{exerciseId}', [VideoController::class, 'getByExercise'])->name('media.video.exercise');
+    Route::get('/videos/{exerciseId}', [VideoController::class, 'getByExercise'])->name('media.video.exercise');
     Route::get('/video/details/{videoId}', [VideoController::class, 'show'])->name('media.video.details');
     Route::post('/video/rating', [VideoController::class, 'rate'])->name('media.video.rating');
     Route::get('/videos/featured', [VideoController::class, 'getFeatured'])->name('media.videos.featured');
     Route::get('/videos/by-difficulty/{level}', [VideoController::class, 'getByDifficulty'])->name('media.videos.difficulty');
     Route::get('/videos/by-type/{type}', [VideoController::class, 'getByType'])->name('media.videos.type');
     Route::post('/video/content', [VideoController::class, 'store'])->name('media.video.store');
+
+    // ML-Powered Personalized Recommendations (as specified in the document)
     Route::get('/videos/recommendations/{userId}', [VideoController::class, 'getPersonalizedRecommendations'])->name('media.videos.recommendations');
 
     // Streaming Routes

@@ -144,7 +144,7 @@ class ValidateContentAccess
             $userSubscription = $this->getUserSubscriptionStatus($userId);
 
             // Check content-specific permissions
-            if ($this->isPremiulmContent($mediaFile) && !$userSubscription['has_premium']) {
+            if ($this->isPremiumContent($mediaFile) && !$userSubscription['has_premium']) {
                 return false;
             }
 
@@ -175,7 +175,7 @@ class ValidateContentAccess
     {
         try {
             $client = new Client();
-            $response = $client->get(env('AUTH_SERVICE_URL') . '/auth/validate/' . $userId, [
+            $response = $client->get(env('AUTH_SERVICE_URL') . '/auth/validate', [
                 'headers' => [
                     'Authorization' => 'Bearer ' . request()->bearerToken(),
                     'Accept' => 'application/json'
@@ -221,7 +221,7 @@ class ValidateContentAccess
         return ['has_premium' => false, 'subscription_type' => 'free'];
     }
 
-    private function isPremiulmContent(MediaFile $mediaFile): bool
+    private function isPremiumContent(MediaFile $mediaFile): bool
     {
         return in_array($mediaFile->entity_type, ['premium_content', 'premium_exercise', 'premium_workout']);
     }
