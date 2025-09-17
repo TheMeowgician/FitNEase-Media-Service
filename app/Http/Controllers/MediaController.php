@@ -7,6 +7,7 @@ use App\Models\VideoContent;
 use App\Models\AudioContent;
 use App\Events\MediaProcessingCompleted;
 use App\Events\MediaUploadFailed;
+use App\Services\ContentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -60,6 +61,15 @@ class MediaController extends Controller
                 })->delay(now()->addSeconds(5));
             } else {
                 $mediaFile->update(['upload_status' => 'ready']);
+            }
+
+            // Notify content service if this media is for an exercise
+            if ($request->entity_type === 'exercise' && $request->entity_id) {
+                $token = $request->bearerToken();
+                if ($token) {
+                    $contentService = new ContentService();
+                    $contentService->notifyMediaUpload($token, $request->entity_id, $mediaFile->media_file_id);
+                }
             }
 
             return response()->json([

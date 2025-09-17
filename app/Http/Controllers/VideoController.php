@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\VideoContent;
 use App\Models\MediaFile;
+use App\Services\EngagementService;
+use App\Services\ContentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -55,7 +57,7 @@ class VideoController extends Controller
         }
     }
 
-    public function show(int $videoId): JsonResponse
+    public function show(Request $request, int $videoId): JsonResponse
     {
         try {
             $video = VideoContent::with(['mediaFile', 'mediaFile.metadata'])
@@ -70,6 +72,15 @@ class VideoController extends Controller
             }
 
             $video->incrementViewCount();
+
+            // Track video view in engagement service
+            $userId = $request->attributes->get('user_id');
+            $token = $request->bearerToken();
+
+            if ($userId && $token) {
+                $engagementService = new EngagementService();
+                $engagementService->trackVideoView($token, $userId, $videoId);
+            }
 
             return response()->json([
                 'success' => true,
