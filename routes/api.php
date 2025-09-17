@@ -7,10 +7,10 @@ use App\Http\Controllers\VideoController;
 use App\Http\Controllers\StreamingController;
 
 Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+    return $request->attributes->get('user');
+})->middleware('auth.api');
 
-Route::prefix('media')->group(function () {
+Route::prefix('media')->middleware('auth.api')->group(function () {
 
     // File Management Routes
     Route::post('/upload', [MediaController::class, 'upload'])->name('media.upload');
