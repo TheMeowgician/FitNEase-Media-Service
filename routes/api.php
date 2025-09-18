@@ -8,6 +8,8 @@ use App\Http\Controllers\StreamingController;
 use App\Http\Controllers\ServiceTestController;
 use App\Http\Controllers\ServiceCommunicationTestController;
 use App\Http\Controllers\ServiceIntegrationDemoController;
+use App\Http\Controllers\MediaServiceTestController;
+use App\Http\Controllers\MediaServiceCommunicationTestController;
 
 Route::get('/user', function (Request $request) {
     return $request->attributes->get('user');
@@ -116,4 +118,16 @@ Route::prefix('demo')->group(function () {
     // Service Integration Overview
     Route::get('/integrations', [ServiceIntegrationDemoController::class, 'getServiceIntegrationOverview'])
         ->name('demo.integrations');
+});
+
+// Comprehensive service testing routes - for validating inter-service communication
+Route::middleware('auth.api')->prefix('service-tests')->group(function () {
+    Route::get('/auth', [MediaServiceTestController::class, 'testAuthService']);
+    Route::get('/content', [MediaServiceTestController::class, 'testContentService']);
+    Route::get('/engagement', [MediaServiceTestController::class, 'testEngagementService']);
+    Route::get('/all', [MediaServiceTestController::class, 'testAllServices']);
+
+    Route::get('/connectivity', [MediaServiceCommunicationTestController::class, 'testServiceConnectivity']);
+    Route::get('/token-validation', [MediaServiceCommunicationTestController::class, 'testMediaTokenValidation']);
+    Route::get('/integration', [MediaServiceCommunicationTestController::class, 'testServiceIntegration']);
 });
