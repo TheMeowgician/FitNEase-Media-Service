@@ -27,7 +27,7 @@ class ValidateApiToken
             if ($response->successful()) {
                 $userData = $response->json();
                 $request->attributes->set('user', $userData);
-                $request->attributes->set('user_id', $userData['id']);
+                $request->attributes->set('user_id', $userData['user_id']);
                 return $next($request);
             } else {
                 Log::warning('Auth service returned error', [
