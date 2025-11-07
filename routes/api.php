@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\VideoController;
+use App\Http\Controllers\VideoConferenceController;
 use App\Http\Controllers\StreamingController;
 use App\Http\Controllers\ServiceTestController;
 use App\Http\Controllers\ServiceCommunicationTestController;
@@ -44,6 +45,30 @@ Route::prefix('media')->middleware('auth.api')->group(function () {
     Route::get('/streaming/manifest/{videoId}', [StreamingController::class, 'generateStreamingManifest'])->name('media.streaming.manifest');
     Route::get('/streaming/token/{mediaFileId}', [StreamingController::class, 'getStreamingToken'])->name('media.streaming.token');
 
+});
+
+// Video Conferencing Routes (100ms Integration)
+// Real-time video calls for group workout sessions
+Route::prefix('video')->middleware('auth.api')->group(function () {
+
+    // Room Management
+    Route::post('/rooms/create', [VideoConferenceController::class, 'createRoom'])->name('video.room.create');
+    Route::get('/rooms/{session_id}', [VideoConferenceController::class, 'getRoom'])->name('video.room.get');
+    Route::delete('/rooms/{session_id}', [VideoConferenceController::class, 'closeRoom'])->name('video.room.close');
+
+    // Join Token Generation
+    Route::post('/rooms/{session_id}/token', [VideoConferenceController::class, 'getJoinToken'])->name('video.token.get');
+
+    // Participant Management
+    Route::get('/rooms/{session_id}/participants', [VideoConferenceController::class, 'getParticipants'])->name('video.participants.list');
+    Route::delete('/rooms/{session_id}/participants/{user_id}', [VideoConferenceController::class, 'leaveRoom'])->name('video.participants.leave');
+
+    // Recording (Optional)
+    Route::post('/rooms/{session_id}/recording/start', [VideoConferenceController::class, 'startRecording'])->name('video.recording.start');
+    Route::post('/rooms/{session_id}/recording/stop', [VideoConferenceController::class, 'stopRecording'])->name('video.recording.stop');
+
+    // Service Status
+    Route::get('/status', [VideoConferenceController::class, 'getStatus'])->name('video.status');
 });
 
 // Health check route
