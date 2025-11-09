@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\VideoRoom;
 use App\Models\VideoParticipant;
 use App\Models\VideoRecording;
-use App\Services\HMSService;
+use App\Services\AgoraService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -13,15 +13,15 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Handles real-time video conferencing for group workout sessions
- * Integrates with 100ms for video calling functionality
+ * Integrates with Agora RTC for video calling functionality
  */
 class VideoConferenceController extends Controller
 {
-    private HMSService $hmsService;
+    private AgoraService $agoraService;
 
-    public function __construct(HMSService $hmsService)
+    public function __construct(AgoraService $agoraService)
     {
-        $this->hmsService = $hmsService;
+        $this->agoraService = $agoraService;
     }
 
     /**
@@ -44,8 +44,8 @@ class VideoConferenceController extends Controller
         }
 
         try {
-            // Check if HMS is configured
-            if (!$this->hmsService->isConfigured()) {
+            // Check if Agora is configured
+            if (!$this->agoraService->isConfigured()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Video conferencing service not configured'
@@ -53,6 +53,14 @@ class VideoConferenceController extends Controller
             }
 
             $sessionId = $request->session_id;
+
+            // Validate channel name format for Agora
+            if (!$this->agoraService->validateChannelName($sessionId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid session ID format for video channel'
+                ], 422);
+            }
 
             // Check if room already exists and is active
             $existingRoom = VideoRoom::where('session_id', $sessionId)
@@ -71,38 +79,27 @@ class VideoConferenceController extends Controller
                     'data' => [
                         'room_id' => $existingRoom->id,
                         'session_id' => $existingRoom->session_id,
-                        'hms_room_id' => $existingRoom->hms_room_id,
+                        'channel_name' => $existingRoom->session_id,
+                        'app_id' => $this->agoraService->getAppId(),
                         'status' => $existingRoom->status,
                         'active_participants' => $existingRoom->activeParticipants()->count()
                     ]
                 ]);
             }
 
-            // Create HMS room
-            $roomName = $request->session_name ?? "Workout Session {$sessionId}";
-            $hmsRoom = $this->hmsService->createRoom(
-                $roomName,
-                "FitNEase group workout video conference"
-            );
-
-            if (!$hmsRoom) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to create video room'
-                ], 500);
-            }
-
-            // Save to database
+            // For Agora, we don't need to create a room on their server
+            // Channels are created automatically when first user joins
+            // We only track it in our database
             $videoRoom = VideoRoom::create([
                 'session_id' => $sessionId,
-                'hms_room_id' => $hmsRoom['id'],
+                'hms_room_id' => $sessionId, // Use session_id as channel name for Agora
                 'status' => 'active'
             ]);
 
             Log::info('[VideoConference] Room created successfully', [
                 'session_id' => $sessionId,
                 'room_id' => $videoRoom->id,
-                'hms_room_id' => $hmsRoom['id']
+                'channel_name' => $sessionId
             ]);
 
             return response()->json([
@@ -111,7 +108,8 @@ class VideoConferenceController extends Controller
                 'data' => [
                     'room_id' => $videoRoom->id,
                     'session_id' => $videoRoom->session_id,
-                    'hms_room_id' => $videoRoom->hms_room_id,
+                    'channel_name' => $videoRoom->session_id,
+                    'app_id' => $this->agoraService->getAppId(),
                     'status' => $videoRoom->status,
                     'active_participants' => 0
                 ]
@@ -164,16 +162,18 @@ class VideoConferenceController extends Controller
                 ], 404);
             }
 
-            // Generate auth token
+            // Generate Agora RTC token
             $userId = $request->user_id;
             $username = $request->username;
             $role = $request->input('role', 'guest');
 
-            $authToken = $this->hmsService->generateAuthToken(
-                $room->hms_room_id,
-                $userId,
-                $username,
-                $role
+            // For Agora: all users are publishers (can send and receive)
+            $agoraRole = 'publisher';
+
+            $rtcToken = $this->agoraService->generateRtcToken(
+                $sessionId, // Channel name
+                $userId,    // User UID
+                $agoraRole
             );
 
             // Track participant joining
@@ -193,9 +193,10 @@ class VideoConferenceController extends Controller
                 'success' => true,
                 'message' => 'Join token generated successfully',
                 'data' => [
-                    'auth_token' => $authToken,
+                    'auth_token' => $rtcToken,
                     'room_id' => $room->id,
-                    'hms_room_id' => $room->hms_room_id,
+                    'channel_name' => $sessionId,
+                    'app_id' => $this->agoraService->getAppId(),
                     'user_id' => $userId,
                     'role' => $role
                 ]
@@ -403,13 +404,8 @@ class VideoConferenceController extends Controller
                 ], 404);
             }
 
-            // End active HMS sessions
-            $this->hmsService->endActiveSessions($room->hms_room_id);
-
-            // Disable HMS room
-            $this->hmsService->disableRoom($room->hms_room_id);
-
-            // Close room in database
+            // For Agora, channels are automatically closed when all users leave
+            // We only need to mark the room as closed in our database
             $room->close();
 
             Log::info('[VideoConference] Room closed', [
@@ -580,14 +576,15 @@ class VideoConferenceController extends Controller
      */
     public function getStatus(): JsonResponse
     {
-        $status = $this->hmsService->getStatus();
+        $status = $this->agoraService->getStatus();
 
         return response()->json([
             'success' => true,
             'data' => [
                 'service' => 'video_conferencing',
-                'provider' => '100ms',
+                'provider' => 'Agora RTC',
                 'configured' => $status['configured'],
+                'app_id' => $status['app_id'],
                 'active_rooms' => VideoRoom::active()->count(),
                 'total_rooms' => VideoRoom::count(),
             ]
