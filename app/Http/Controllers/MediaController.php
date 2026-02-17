@@ -349,6 +349,73 @@ class MediaController extends Controller
         }
     }
 
+    public function uploadProfilePicture(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|image|max:10240|mimes:jpeg,jpg,png,webp',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed. Please upload a valid image (JPEG, PNG, or WebP) under 10MB.',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $file = $request->file('file');
+            $userId = $request->attributes->get('user_id') ?? auth()->id() ?? 0;
+            $fileName = 'profile_' . $userId . '_' . time() . '.' . $file->getClientOriginalExtension();
+
+            $path = $file->storeAs('media/images/profiles', $fileName, 'public');
+
+            // Delete previous profile picture for this user to avoid orphaned files
+            $existingMedia = MediaFile::where('entity_type', 'profile_picture')
+                ->where('entity_id', $userId)
+                ->first();
+
+            if ($existingMedia) {
+                if (Storage::disk('public')->exists($existingMedia->file_path)) {
+                    Storage::disk('public')->delete($existingMedia->file_path);
+                }
+                $existingMedia->delete();
+            }
+
+            $mediaFile = MediaFile::create([
+                'file_name' => $fileName,
+                'original_file_name' => $file->getClientOriginalName(),
+                'file_path' => $path,
+                'file_type' => 'image',
+                'file_size_bytes' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+                'uploaded_by' => $userId,
+                'entity_type' => 'profile_picture',
+                'entity_id' => $userId,
+                'is_public' => true,
+                'upload_status' => 'ready'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Profile picture uploaded successfully',
+                'data' => [
+                    'media_file_id' => $mediaFile->media_file_id,
+                    'file_name' => $mediaFile->file_name,
+                    'file_path' => $path,
+                    'url' => '/storage/' . $path,
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Profile picture upload failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     private function determineFileType(string $mimeType): string
     {
         if (str_starts_with($mimeType, 'video/')) {

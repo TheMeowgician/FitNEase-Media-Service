@@ -18,6 +18,9 @@ Route::get('/user', function (Request $request) {
 
 Route::prefix('media')->middleware('auth.api')->group(function () {
 
+    // Profile Picture Upload
+    Route::post('/profile-picture', [MediaController::class, 'uploadProfilePicture'])->name('media.profile-picture.upload');
+
     // File Management Routes
     Route::post('/upload', [MediaController::class, 'upload'])->name('media.upload');
     Route::get('/file/{fileId}', [MediaController::class, 'show'])->name('media.file.show');
